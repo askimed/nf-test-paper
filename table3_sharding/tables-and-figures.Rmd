@@ -1,0 +1,54 @@
+---
+title: "sharding"
+output:
+  word_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+options(dplyr.summarise.inform = FALSE)
+library(ggplot2)
+library(tidyr)
+library(dplyr)
+library(stringr)
+library(flextable)
+
+```
+
+**Table 3: Time and speedup for different sharding strategies of the nf-gwas pipeline.**.
+
+```{r, echo=FALSE}
+
+baseline <- read.delim("data/baseline.times.txt", header=TRUE, sep=",")
+baseline_time <- sum(baseline$time)
+
+sharding <- read.delim("data/shard.times.txt", header=TRUE, sep=",")
+```
+
+Baseline Time: `r baseline_time`
+
+```{r, echo=FALSE}
+data <- sharding %>%
+  group_by(strategy, shard) %>%
+  summarise(
+    testcases = n(),
+    time = sum(time)
+  )
+
+data_strategy <- data %>%
+  group_by(strategy) %>%
+  summarise(
+    shards = n(),
+    median_time = median(time),
+    sd_time = sd(time),
+    total_time = max(time),
+    speed_up =  baseline_time / total_time
+  )
+
+data_strategy %>%
+  flextable() %>%
+  theme_booktabs() %>% 
+  bold(bold = TRUE, part = "header") %>%
+  autofit()
+
+```
