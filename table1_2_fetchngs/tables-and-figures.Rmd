@@ -1,0 +1,117 @@
+---
+title: "fetchngs"
+output:
+  word_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r  echo=FALSE, warning=FALSE, message=FALSE, fig.width=12, fig.height=10}
+library(ggplot2)
+library(tidyr)
+library(dplyr)
+library(stringr)
+library(flextable)
+
+
+times <- read.delim("data/tests.time.txt", header=TRUE, sep=",")
+
+baseline_time <- sum(times$time)
+
+format_time <- function(x) sprintf( "%.1f", x )
+format_percentage <- function(x) sprintf( "%.1f%%", x*100 )
+```
+
+**Table XX: Number of testcases in the nf-core/fetchngs pipeline.** Each of the 17 components has at least one testcase. Total testcases `r nrow(times)`. Total Execution time: `r sum(times$time)` sec.
+
+```{r, echo=FALSE}
+
+times %>%
+  group_by(type) %>%
+  summarise(
+    testsuites = n_distinct(filename),
+    testcases = n(),
+    mean_time = mean(time),
+    total = sum(time)
+  )  %>%
+    bind_rows(summarise(.,
+                      across(where(is.numeric), sum),
+                      across(where(is.character), ~"Total"))) %>%
+  flextable() %>%
+  theme_booktabs() %>% 
+  bold(bold = TRUE, part = "header") %>%
+  set_header_labels(
+      type = "",
+      testsuites = "Tests suites",
+      testcases = "Tests cases",
+      mean_time = "Mean (sec)",
+      total = "Total (sec)"
+    ) %>%
+  set_formatter(
+    mean_time = format_time,
+    total = format_time
+  ) %>%  
+  hline(i = 4) %>%
+  add_header_row(
+    values = c("", "Execution Time"),
+    colwidths = c(3,2), top = TRUE
+  ) %>%    
+  autofit()
+
+```
+
+<br /><br /><br /><br />
+
+**Table XX: Time and resource saving for different modifications of the nf-core/fetchngs.** We simulated different typical modifications and measured the execution time using nf-tests optimization strategy.
+
+```{r, echo=FALSE}
+
+experiment <- c("M1", "M2", "M3", "M4")
+description <- c(
+  "changed module\nsra_to_samplesheet",
+  "changed modules\nsra_to_samplesheet\nmultiqc_mappings_config",
+  "update of a nf-core module:\nutils_nfcore_pipeline",
+  "changed main workflow\nmain.nf`"
+)
+meta <- data.frame(experiment, description)
+
+times_modifications <- read.delim("data/tests.times.modifications.txt", header=TRUE, sep=",")
+
+
+times_modifications %>%
+  group_by(experiment) %>%
+  summarise(
+    testsuites = n_distinct(filename),
+    testcases = n(),
+    mean_time = mean(time),
+    total = sum(time),
+    saving = ((baseline_time -  sum(time)) / baseline_time)
+  ) %>%
+  merge(meta, by="experiment") %>%
+  select("description", "testcases", "mean_time", "total", "saving") %>%
+  flextable() %>%
+  theme_booktabs() %>% 
+  bold(bold = TRUE, part = "header") %>%
+  set_header_labels(
+      description = "Modification",
+      testsuites = "Tests suites",
+      testcases = "Tests cases",
+      mean_time = "Mean (sec)",
+      total = "Total (sec)",
+      saving = "Saving"
+    ) %>%   
+  set_formatter(
+    mean_time = format_time,
+    total = format_time,
+    saving = format_percentage
+  ) %>%
+  add_body_row(values = list("a","b","c","d","e"), top = TRUE) %>%
+  add_header_row(
+    values = c("", "Execution Time"),
+    colwidths = c(2,3), top = TRUE
+  ) %>%  
+  autofit()
+
+```

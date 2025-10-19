@@ -1,0 +1,4 @@
+M1,M1,modules/local/sra_to_samplesheet/main.nf
+M2,M2,modules/local/sra_to_samplesheet/main.nf modules/local/multiqc_mappings_config/main.nf
+M3,M3,subworkflows/nf-core/utils_nfcore_pipeline/main.nf
+M4,M4,main.nf
