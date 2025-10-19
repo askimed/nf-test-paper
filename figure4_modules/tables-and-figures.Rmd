@@ -1,0 +1,120 @@
+---
+title: "nf-core/modules"
+output:
+  word_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, fig.dpi = 300)
+options(dplyr.summarise.inform = FALSE)
+
+library(ggplot2)
+library(tidyr)
+library(dplyr)
+library(stringr)
+library(flextable)
+library(cowplot)
+
+color_a <- "#5588c5"
+color_b <- "#cc615b" #ff4141
+background_color <- "#f4f0ec"
+color_grid <- "#dbd8c4"
+color_border <- "#9a9679"
+
+theme_lukfor <- function() {
+    theme(panel.border = element_rect(color = color_border),
+      panel.background = element_rect(fill = background_color),
+      #panel.grid.major = element_line(color = color_grid),
+      panel.grid.major = element_blank(),
+      panel.grid.minor = element_blank()
+    )
+}
+
+```
+
+**Table XX: Last n commits of nf-core/modules**.
+
+```{r}
+
+times_modifications <- read.delim("data/tests.times.modifications.txt", header=TRUE, sep=",")
+
+max_version <- max(times_modifications$version)
+
+number_of_commits <- n_distinct(times_modifications$version)
+from <- min(times_modifications$version_date)
+to <- max(times_modifications$version_date)
+
+
+data <- times_modifications %>%
+  group_by(version, version_date, setup) %>%
+  summarise(
+    testsuites = n_distinct(filename),
+    testcases = n()
+  ) %>%
+  select("version", "version_date", "setup", "testsuites", "testcases")
+data$version <- max_version - data$version
+
+data %>%
+  group_by(setup) %>%
+  summarise(
+    median_testcases = median(testcases),
+    total_testcases = sum(testcases),
+    under_25 = sum(testcases <= 25)
+  ) %>%
+  flextable() %>%
+  theme_booktabs() %>% 
+  bold(bold = TRUE, part = "header") %>%
+  set_header_labels(
+      median_testcases = "Median Testcases",
+      total_testcases = "Total Testcases",
+      setup = "Method",
+      under_25 = "Less than 25 Testscases"
+    ) %>%   
+  autofit()
+```
+
+
+```{r}
+p1 <- ggplot(data) +
+  geom_boxplot(aes(y=testcases, x=factor(setup), color=factor(setup))) +
+  ylab("") +
+  xlab("") +
+  scale_color_manual(name = "Optimization Strategy",
+      values = c("all" = color_a, "firewall" = color_b), labels = c("None", "Firewall")) +
+  scale_x_discrete(labels = c("None", "Firewall")) +
+
+  theme_bw() + 
+  theme_lukfor()
+
+```
+
+
+---
+
+**Figure XX: Last 500 commits of nf-core/modules**. Number of commits: `r max_version`. From `r from` to `r to`.
+
+```{r, echo=FALSE, fig.height=3, fig.width=6, dpi=300}
+p2 <- ggplot(data) +
+  geom_line(aes(x=version, y=testcases, color=setup)) +
+  ylab("Executed Testcases") +
+  xlab("Commits") +
+  scale_color_manual(name = "Optimization Strategy",
+      values = c("all" = color_a, "firewall" = color_b), labels = c("None", "Firewall")) +
+  theme_bw() +
+  theme_lukfor()
+
+
+legend <- get_legend(
+  # create some space to the left of the legend
+  p2 + 
+    theme(legend.position="bottom") +
+  guides(color=guide_legend(title="", override.aes = list(size=4)))
+)
+
+plots <- plot_grid(
+  p2 + theme(legend.position="none") + ggtitle("a") ,
+  p1 + theme(legend.position="none") + ggtitle("b") ,
+  ncol = 2,
+  rel_widths=c(0.75,0.25))
+plot_grid(plots,legend, ncol = 1, rel_heights=c(1,0.1))
+```
